@@ -8,14 +8,12 @@
 // 1. 기본 설정
 // ==========================================================
 
-// 대구 북구 중심
 const BUKGU_CENTER = [
   35.92,
   128.58
 ];
 
 
-// 관리등급 색상
 const GRADE_COLORS = {
 
   A: "#d73027",
@@ -26,45 +24,68 @@ const GRADE_COLORS = {
 
   D: "#91cf60",
 
-  default: "#999999"
+  default: "#cccccc"
+
 };
 
 
-// 지도 객체
+// 지도
 let map;
 
 
-// 지도 레이어
+// 레이어
 let regionLayer;
-
 let cctvLayer;
-
 let hotspotLayer;
 
 
+// 동별 데이터 저장
+let regionData = [];
+
+
+// 동 이름 → 데이터
+let regionDataMap = {};
+
+
+// GeoJSON 사용 여부
+let useGeoJson = false;
+
+
 // ==========================================================
-// 2. 지도 생성
+// 2. 지도 초기화
 // ==========================================================
 
 function initMap() {
 
-  // Leaflet 지도 생성
   map = L.map(
-    "map"
-  ).setView(
-    BUKGU_CENTER,
-    12
+    "map",
+    {
+
+      center:
+        BUKGU_CENTER,
+
+      zoom:
+        12,
+
+      minZoom:
+        11,
+
+      maxZoom:
+        18
+
+    }
   );
 
 
-  // OpenStreetMap 배경지도
+  // OpenStreetMap
   L.tileLayer(
 
     "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
 
     {
 
-      maxZoom: 19,
+      maxZoom:
+        19,
 
       attribution:
         "&copy; OpenStreetMap contributors"
@@ -76,33 +97,33 @@ function initMap() {
   );
 
 
-  // 동별 관리등급 레이어
+  // 동별 분석 레이어
   regionLayer =
     L.layerGroup()
     .addTo(map);
 
 
-  // CCTV 레이어
+  // CCTV
   cctvLayer =
     L.layerGroup();
 
 
-  // 상습 민원지역 레이어
+  // 상습 민원
   hotspotLayer =
     L.layerGroup();
 
 
-  // 지도 우측 레이어 선택
+  // 레이어 메뉴
   L.control.layers(
 
     null,
 
     {
 
-      "동별 관리 현황":
+      "관리 우선도":
         regionLayer,
 
-      "CCTV 위치":
+      "CCTV":
         cctvLayer,
 
       "상습 민원지역":
@@ -112,7 +133,8 @@ function initMap() {
 
     {
 
-      collapsed: false
+      collapsed:
+        false
 
     }
 
@@ -121,18 +143,18 @@ function initMap() {
   );
 
 
-  // 등급 범례
+  // 범례
   addGradeLegend();
 
 
-  // 데이터 로딩
+  // 데이터 시작
   loadMapData();
 
 }
 
 
 // ==========================================================
-// 3. API 데이터 요청
+// 3. API 요청
 // ==========================================================
 
 async function fetchJson(url) {
@@ -144,9 +166,7 @@ async function fetchJson(url) {
   if (!response.ok) {
 
     throw new Error(
-
       `${url} 요청 실패`
-
     );
 
   }
@@ -158,17 +178,17 @@ async function fetchJson(url) {
 
 
 // ==========================================================
-// 4. 숫자 표시 함수
+// 4. 기본 포맷
 // ==========================================================
 
 function formatNumber(value) {
 
-  const num =
+  const number =
     Number(value);
 
 
   if (
-    !Number.isFinite(num)
+    !Number.isFinite(number)
   ) {
 
     return "-";
@@ -177,7 +197,7 @@ function formatNumber(value) {
 
 
   return Math.round(
-    num
+    number
   ).toLocaleString(
     "ko-KR"
   );
@@ -185,8 +205,30 @@ function formatNumber(value) {
 }
 
 
+function formatScore(value) {
+
+  const number =
+    Number(value);
+
+
+  if (
+    !Number.isFinite(number)
+  ) {
+
+    return "-";
+
+  }
+
+
+  return number.toFixed(
+    1
+  );
+
+}
+
+
 // ==========================================================
-// 5. 관리등급 색상
+// 5. 등급 색상
 // ==========================================================
 
 function getGradeColor(
@@ -194,184 +236,158 @@ function getGradeColor(
 ) {
 
   return (
+
     GRADE_COLORS[
       grade
     ]
+
     ||
+
     GRADE_COLORS.default
+
   );
 
 }
 
 
 // ==========================================================
-// 6. 오른쪽 상세 패널 변경
+// 6. 오른쪽 상세정보
 // ==========================================================
 
 function updateRegionPanel(
   region
 ) {
 
-  document.getElementById(
-    "region-name"
-  ).textContent =
-    region["동"];
+  setText(
+    "region-name",
+    region["동"]
+  );
 
 
-  document.getElementById(
-    "grade"
-  ).textContent =
-    region["관리등급"];
+  setText(
+    "grade",
+    region["관리등급"]
+  );
 
 
-  document.getElementById(
-    "score"
-  ).textContent =
-    `${region["관리점수"]}점`;
+  setText(
+    "score",
+    `${formatScore(
+      region["관리점수"]
+    )}점`
+  );
 
 
-  document.getElementById(
-    "violation-count"
-  ).textContent =
+  setText(
+    "violation-count",
     `${formatNumber(
       region[
         "단속건수_2017_2023"
       ]
-    )}건`;
+    )}건`
+  );
 
 
-  document.getElementById(
-    "complaint-count"
-  ).textContent =
+  setText(
+    "complaint-count",
     `${formatNumber(
       region[
         "민원건수_2018_2021"
       ]
-    )}건`;
+    )}건`
+  );
 
 
-  document.getElementById(
-    "cctv-count"
-  ).textContent =
+  setText(
+    "cctv-count",
     `${formatNumber(
       region["CCTV수"]
-    )}대`;
+    )}대`
+  );
 
 
-  document.getElementById(
-    "peak-weekday"
-  ).textContent =
-    region["집중요일"];
+  setText(
+    "peak-weekday",
+    region["집중요일"]
+  );
 
 
-  document.getElementById(
-    "peak-hour"
-  ).textContent =
-    `${region["집중시간"]}시`;
+  setText(
+    "peak-hour",
+    `${region["집중시간"]}시`
+  );
 
 
-  document.getElementById(
-    "management-type"
-  ).textContent =
-    region["관리유형"];
+  setText(
+    "management-type",
+    region["관리유형"]
+  );
 
 
-  // 관리등급 색상
-  document.getElementById(
-    "grade"
-  ).style.color =
-    getGradeColor(
-      region["관리등급"]
+  // 등급 색
+  const gradeElement =
+    document.getElementById(
+      "grade"
     );
+
+
+  if (gradeElement) {
+
+    gradeElement.style.color =
+      getGradeColor(
+        region["관리등급"]
+      );
+
+    gradeElement.style.fontWeight =
+      "bold";
+
+  }
+
+}
+
+
+function setText(
+  id,
+  value
+) {
+
+  const element =
+    document.getElementById(
+      id
+    );
+
+
+  if (!element) {
+
+    return;
+
+  }
+
+
+  element.textContent =
+
+    value === null
+    ||
+    value === undefined
+    ||
+    value === ""
+
+    ? "-"
+
+    : value;
 
 }
 
 
 // ==========================================================
-// 7. 동별 관리 마커 생성
+// 7. 팝업 내용
 // ==========================================================
 
-function createRegionMarker(
+function buildRegionPopup(
   region
 ) {
 
-  const lat =
-    Number(
-      region["대표위도"]
-    );
-
-
-  const lng =
-    Number(
-      region["대표경도"]
-    );
-
-
-  // 좌표가 없으면 표시하지 않음
-  if (
-    !Number.isFinite(lat)
-    ||
-    !Number.isFinite(lng)
-  ) {
-
-    return null;
-
-  }
-
-
-  const grade =
-    region["관리등급"];
-
-
-  const color =
-    getGradeColor(
-      grade
-    );
-
-
-  // 원형 마커
-  const marker =
-    L.circleMarker(
-
-      [
-        lat,
-        lng
-      ],
-
-      {
-
-        radius:
-          grade === "A"
-          ? 10
-          : 8,
-
-        color:
-          "#333",
-
-        fillColor:
-          color,
-
-        fillOpacity:
-          0.85,
-
-        weight:
-          1.5
-
-      }
-
-    );
-
-
-  // 마우스 올렸을 때
-  marker.bindTooltip(
-
-    `${region["동"]} · ${grade}등급`
-
-  );
-
-
-  // 클릭 팝업
-  marker.bindPopup(`
+  return `
 
     <div class="region-popup">
 
@@ -388,7 +404,7 @@ function createRegionMarker(
           </th>
 
           <td>
-            ${grade}
+            ${region["관리등급"]}
           </td>
 
         </tr>
@@ -401,7 +417,9 @@ function createRegionMarker(
           </th>
 
           <td>
-            ${region["관리점수"]}
+            ${formatScore(
+              region["관리점수"]
+            )}점
           </td>
 
         </tr>
@@ -414,13 +432,11 @@ function createRegionMarker(
           </th>
 
           <td>
-
             ${formatNumber(
               region[
                 "단속건수_2017_2023"
               ]
             )}건
-
           </td>
 
         </tr>
@@ -433,13 +449,11 @@ function createRegionMarker(
           </th>
 
           <td>
-
             ${formatNumber(
               region[
                 "민원건수_2018_2021"
               ]
             )}건
-
           </td>
 
         </tr>
@@ -452,11 +466,9 @@ function createRegionMarker(
           </th>
 
           <td>
-
             ${formatNumber(
               region["CCTV수"]
             )}대
-
           </td>
 
         </tr>
@@ -487,30 +499,24 @@ function createRegionMarker(
 
         </tr>
 
+
+        <tr>
+
+          <th>
+            관리유형
+          </th>
+
+          <td>
+            ${region["관리유형"]}
+          </td>
+
+        </tr>
+
       </table>
 
     </div>
 
-  `);
-
-
-  // 클릭 시 오른쪽 정보 변경
-  marker.on(
-
-    "click",
-
-    function () {
-
-      updateRegionPanel(
-        region
-      );
-
-    }
-
-  );
-
-
-  return marker;
+  `;
 
 }
 
@@ -521,11 +527,373 @@ function createRegionMarker(
 
 async function loadRegions() {
 
-  const regions =
+  regionData =
     await fetchJson(
       "/api/regions"
     );
 
+
+  regionDataMap = {};
+
+
+  regionData.forEach(
+    function (region) {
+
+      regionDataMap[
+        region["동"]
+      ] = region;
+
+    }
+  );
+
+}
+
+
+// ==========================================================
+// 9. GeoJSON 행정동 영역
+// ==========================================================
+
+async function loadRegionGeoJson() {
+
+  try {
+
+    const response =
+      await fetch(
+        "/static/data/bukgu_dong.geojson"
+      );
+
+
+    // GeoJSON 파일이 없으면
+    // 마커 방식으로 전환
+    if (!response.ok) {
+
+      console.log(
+        "GeoJSON 없음 → 마커 방식 사용"
+      );
+
+      loadRegionMarkers();
+
+      return;
+
+    }
+
+
+    const geojson =
+      await response.json();
+
+
+    useGeoJson =
+      true;
+
+
+    regionLayer.clearLayers();
+
+
+    const geoLayer =
+      L.geoJSON(
+
+        geojson,
+
+        {
+
+          style:
+            regionStyle,
+
+
+          onEachFeature:
+            onEachRegion
+
+        }
+
+      );
+
+
+    geoLayer.addTo(
+      regionLayer
+    );
+
+
+    const bounds =
+      geoLayer.getBounds();
+
+
+    if (
+      bounds.isValid()
+    ) {
+
+      // 북구 전체가 보이도록
+      map.fitBounds(
+
+        bounds,
+
+        {
+
+          padding:
+            [
+              10,
+              10
+            ]
+
+        }
+
+      );
+
+
+      // 북구 밖으로 너무 멀리 이동 못하게
+      map.setMaxBounds(
+        bounds.pad(
+          0.15
+        )
+      );
+
+    }
+
+
+    console.log(
+      "행정동 GeoJSON 지도 적용 완료"
+    );
+
+
+  }
+
+  catch (error) {
+
+    console.log(
+      "GeoJSON 오류 → 마커 방식 사용"
+    );
+
+
+    loadRegionMarkers();
+
+  }
+
+}
+
+
+// ==========================================================
+// 10. GeoJSON 동 이름 찾기
+// ==========================================================
+
+function getFeatureDongName(
+  feature
+) {
+
+  const props =
+    feature.properties
+    ||
+    {};
+
+
+  // GeoJSON마다 컬럼명이 다를 수 있어서
+  // 여러 후보 확인
+
+  return (
+
+    props["동"]
+
+    ||
+
+    props["ADM_DR_NM"]
+
+    ||
+
+    props["adm_nm"]
+
+    ||
+
+    props["EMD_KOR_NM"]
+
+    ||
+
+    props["name"]
+
+    ||
+
+    null
+
+  );
+
+}
+
+
+// ==========================================================
+// 11. GeoJSON 색상
+// ==========================================================
+
+function regionStyle(
+  feature
+) {
+
+  const dong =
+    getFeatureDongName(
+      feature
+    );
+
+
+  const region =
+    regionDataMap[
+      dong
+    ];
+
+
+  const grade =
+    region
+    ? region["관리등급"]
+    : null;
+
+
+  return {
+
+    color:
+      "#25364a",
+
+    weight:
+      1.5,
+
+    fillColor:
+      getGradeColor(
+        grade
+      ),
+
+    fillOpacity:
+      region
+      ? 0.55
+      : 0.15
+
+  };
+
+}
+
+
+// ==========================================================
+// 12. 행정동 클릭 기능
+// ==========================================================
+
+function onEachRegion(
+  feature,
+  layer
+) {
+
+  const dong =
+    getFeatureDongName(
+      feature
+    );
+
+
+  const region =
+    regionDataMap[
+      dong
+    ];
+
+
+  // 분석 데이터가 없는 경우
+  if (!region) {
+
+    layer.bindTooltip(
+      dong || "지역정보 없음"
+    );
+
+    return;
+
+  }
+
+
+  // 마우스 오버
+  layer.on(
+    "mouseover",
+
+    function () {
+
+      layer.setStyle({
+
+        weight:
+          3,
+
+        fillOpacity:
+          0.75
+
+      });
+
+    }
+
+  );
+
+
+  // 마우스 나가면 원래대로
+  layer.on(
+    "mouseout",
+
+    function () {
+
+      layer.setStyle(
+        regionStyle(
+          feature
+        )
+      );
+
+    }
+
+  );
+
+
+  // 툴팁
+  layer.bindTooltip(
+
+    `${dong} · ${region["관리등급"]}등급`
+
+  );
+
+
+  // 팝업
+  layer.bindPopup(
+
+    buildRegionPopup(
+      region
+    )
+
+  );
+
+
+  // 클릭
+  layer.on(
+    "click",
+
+    function () {
+
+      updateRegionPanel(
+        region
+      );
+
+      map.fitBounds(
+        layer.getBounds(),
+
+        {
+
+          padding:
+            [
+              20,
+              20
+            ],
+
+          maxZoom:
+            15
+
+        }
+
+      );
+
+    }
+
+  );
+
+}
+
+
+// ==========================================================
+// 13. GeoJSON 없을 때 마커
+// ==========================================================
+
+function loadRegionMarkers() {
 
   regionLayer.clearLayers();
 
@@ -533,21 +901,113 @@ async function loadRegions() {
   const bounds = [];
 
 
-  regions.forEach(
+  regionData.forEach(
 
-    function (region) {
+    function (
+      region
+    ) {
 
-      const marker =
-        createRegionMarker(
-          region
+      const lat =
+        Number(
+          region[
+            "대표위도"
+          ]
         );
 
 
-      if (!marker) {
+      const lng =
+        Number(
+          region[
+            "대표경도"
+          ]
+        );
+
+
+      if (
+        !Number.isFinite(lat)
+        ||
+        !Number.isFinite(lng)
+      ) {
 
         return;
 
       }
+
+
+      const color =
+        getGradeColor(
+          region[
+            "관리등급"
+          ]
+        );
+
+
+      const marker =
+        L.circleMarker(
+
+          [
+            lat,
+            lng
+          ],
+
+          {
+
+            radius:
+              region[
+                "관리등급"
+              ]
+              === "A"
+
+              ? 10
+
+              : 8,
+
+            color:
+              "#333333",
+
+            weight:
+              1,
+
+            fillColor:
+              color,
+
+            fillOpacity:
+              0.85
+
+          }
+
+        );
+
+
+      marker.bindTooltip(
+
+        `${region["동"]} · ${region["관리등급"]}등급`
+
+      );
+
+
+      marker.bindPopup(
+
+        buildRegionPopup(
+          region
+        )
+
+      );
+
+
+      marker.on(
+
+        "click",
+
+        function () {
+
+          updateRegionPanel(
+            region
+          );
+
+        }
+
+      );
 
 
       marker.addTo(
@@ -564,7 +1024,6 @@ async function loadRegions() {
   );
 
 
-  // 모든 동이 지도에 보이도록
   if (
     bounds.length > 0
   ) {
@@ -594,96 +1053,7 @@ async function loadRegions() {
 
 
 // ==========================================================
-// 9. CCTV 마커
-// ==========================================================
-
-function createCctvMarker(
-  item
-) {
-
-  const lat =
-    Number(
-      item["위도"]
-    );
-
-
-  const lng =
-    Number(
-      item["경도"]
-    );
-
-
-  if (
-    !Number.isFinite(lat)
-    ||
-    !Number.isFinite(lng)
-  ) {
-
-    return;
-
-  }
-
-
-  const marker =
-    L.circleMarker(
-
-      [
-        lat,
-        lng
-      ],
-
-      {
-
-        radius:
-          4,
-
-        color:
-          "#2563eb",
-
-        fillColor:
-          "#3b82f6",
-
-        fillOpacity:
-          0.8
-
-      }
-
-    );
-
-
-  marker.bindPopup(`
-
-    <strong>
-      CCTV
-    </strong>
-
-    <br>
-
-    동:
-    ${item["동"]}
-
-    <br>
-
-    주소:
-    ${item["주소"]}
-
-    <br>
-
-    목적:
-    ${item["설치목적구분"]}
-
-  `);
-
-
-  marker.addTo(
-    cctvLayer
-  );
-
-}
-
-
-// ==========================================================
-// 10. CCTV 데이터
+// 14. CCTV
 // ==========================================================
 
 async function loadCctv() {
@@ -699,126 +1069,98 @@ async function loadCctv() {
 
   data.forEach(
 
-    createCctvMarker
+    function (item) {
 
-  );
-
-}
-
-
-// ==========================================================
-// 11. 상습 민원지역
-// ==========================================================
-
-function createHotspotMarker(
-  item
-) {
-
-  const lat =
-    Number(
-      item["위도"]
-    );
+      const lat =
+        Number(
+          item["위도"]
+        );
 
 
-  const lng =
-    Number(
-      item["경도"]
-    );
+      const lng =
+        Number(
+          item["경도"]
+        );
 
 
-  if (
-    !Number.isFinite(lat)
-    ||
-    !Number.isFinite(lng)
-  ) {
+      if (
+        !Number.isFinite(lat)
+        ||
+        !Number.isFinite(lng)
+      ) {
 
-    return;
-
-  }
-
-
-  const count =
-    Number(
-      item[
-        "민원발생누적건수"
-      ]
-    )
-    ||
-    0;
-
-
-  // 민원이 많을수록 원 크기 증가
-  const radius =
-    Math.min(
-
-      16,
-
-      6 +
-      count /
-      250
-
-    );
-
-
-  const marker =
-    L.circleMarker(
-
-      [
-        lat,
-        lng
-      ],
-
-      {
-
-        radius:
-          radius,
-
-        color:
-          "#7c3aed",
-
-        fillColor:
-          "#a855f7",
-
-        fillOpacity:
-          0.6
+        return;
 
       }
 
-    );
+
+      const marker =
+        L.circleMarker(
+
+          [
+            lat,
+            lng
+          ],
+
+          {
+
+            radius:
+              4,
+
+            color:
+              "#1d4ed8",
+
+            fillColor:
+              "#3b82f6",
+
+            fillOpacity:
+              0.8,
+
+            weight:
+              1
+
+          }
+
+        );
 
 
-  marker.bindPopup(`
+      marker.bindPopup(`
 
-    <strong>
-      상습 민원지역
-    </strong>
+        <strong>
+          CCTV
+        </strong>
 
-    <br>
+        <br>
 
-    ${item["짧은주소"]}
+        동:
+        ${item["동"] || "-"}
 
-    <br>
+        <br>
 
-    누적 민원:
+        주소:
+        ${item["주소"] || "-"}
 
-    ${formatNumber(
-      item[
-        "민원발생누적건수"
-      ]
-    )}건
+        <br>
 
-  `);
+        설치목적:
+        ${item["설치목적구분"] || "-"}
+
+      `);
 
 
-  marker.addTo(
-    hotspotLayer
+      marker.addTo(
+        cctvLayer
+      );
+
+    }
+
   );
 
 }
 
 
 // ==========================================================
-// 12. 상습 민원 데이터
+// 15. 상습 민원지역
 // ==========================================================
 
 async function loadHotspots() {
@@ -834,7 +1176,135 @@ async function loadHotspots() {
 
   data.forEach(
 
-    createHotspotMarker
+    function (item) {
+
+      const lat =
+        Number(
+          item["위도"]
+        );
+
+
+      const lng =
+        Number(
+          item["경도"]
+        );
+
+
+      if (
+        !Number.isFinite(lat)
+        ||
+        !Number.isFinite(lng)
+      ) {
+
+        return;
+
+      }
+
+
+      const count =
+        Number(
+          item[
+            "민원발생누적건수"
+          ]
+        )
+        ||
+        0;
+
+
+      const radius =
+        Math.min(
+
+          15,
+
+          Math.max(
+
+            5,
+
+            5 +
+            count /
+            300
+
+          )
+
+        );
+
+
+      const marker =
+        L.circleMarker(
+
+          [
+            lat,
+            lng
+          ],
+
+          {
+
+            radius:
+              radius,
+
+            color:
+              "#6d28d9",
+
+            fillColor:
+              "#a855f7",
+
+            fillOpacity:
+              0.6,
+
+            weight:
+              2
+
+          }
+
+        );
+
+
+      marker.bindPopup(`
+
+        <strong>
+          상습 민원지역
+        </strong>
+
+        <br>
+
+        ${
+
+          item[
+            "짧은주소"
+          ]
+
+          ||
+
+          item[
+            "주소"
+          ]
+
+          ||
+
+          "-"
+
+        }
+
+        <br>
+
+        누적 민원:
+
+        ${formatNumber(
+
+          item[
+            "민원발생누적건수"
+          ]
+
+        )}건
+
+      `);
+
+
+      marker.addTo(
+        hotspotLayer
+      );
+
+    }
 
   );
 
@@ -842,7 +1312,7 @@ async function loadHotspots() {
 
 
 // ==========================================================
-// 13. 관리등급 범례
+// 16. 관리등급 범례
 // ==========================================================
 
 function addGradeLegend() {
@@ -872,28 +1342,28 @@ function addGradeLegend() {
       div.innerHTML = `
 
         <strong>
-          관리등급
+          관리 우선도
         </strong>
 
-        <div>
-          <span class="legend-color grade-a"></span>
-          A · 집중관리 우선
-        </div>
+        <br>
 
-        <div>
-          <span class="legend-color grade-b"></span>
-          B · 관리 강화
-        </div>
+        <span class="legend-color grade-a"></span>
+        A · 집중관리 우선
 
-        <div>
-          <span class="legend-color grade-c"></span>
-          C · 일반 관리
-        </div>
+        <br>
 
-        <div>
-          <span class="legend-color grade-d"></span>
-          D · 우선도 낮음
-        </div>
+        <span class="legend-color grade-b"></span>
+        B · 관리 강화
+
+        <br>
+
+        <span class="legend-color grade-c"></span>
+        C · 일반 관리
+
+        <br>
+
+        <span class="legend-color grade-d"></span>
+        D · 상대적 우선도 낮음
 
       `;
 
@@ -911,16 +1381,24 @@ function addGradeLegend() {
 
 
 // ==========================================================
-// 14. 데이터 전체 불러오기
+// 17. 전체 데이터 시작
 // ==========================================================
 
 async function loadMapData() {
 
   try {
 
-    await Promise.all([
+    // 동별 분석 데이터 먼저
+    await loadRegions();
 
-      loadRegions(),
+
+    // GeoJSON 있으면 폴리곤,
+    // 없으면 마커
+    await loadRegionGeoJson();
+
+
+    // 보조 레이어
+    await Promise.all([
 
       loadCctv(),
 
@@ -934,9 +1412,12 @@ async function loadMapData() {
     );
 
 
-  } catch (error) {
+  }
+
+  catch (error) {
 
     console.error(
+      "지도 데이터 로딩 오류",
       error
     );
 
@@ -946,7 +1427,7 @@ async function loadMapData() {
 
 
 // ==========================================================
-// 15. 시작
+// 18. 실행
 // ==========================================================
 
 document.addEventListener(
