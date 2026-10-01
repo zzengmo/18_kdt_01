@@ -1,52 +1,464 @@
-/* 대시보드 전체 레이아웃 (최소한의 스타일만 — 디자인은 추후 담당자가 보강) */
+/* =========================================================
+   전체
+========================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
 
 body {
+
   margin: 0;
-  font-family: "Malgun Gothic", sans-serif;
+
+  font-family:
+    "Malgun Gothic",
+    Arial,
+    sans-serif;
+
+  background:
+    #f5f7fa;
+
+  color:
+    #222;
+
 }
+
+
+/* =========================================================
+   상단
+========================================================= */
 
 .app-header {
-  padding: 12px 20px;
-  border-bottom: 1px solid #ddd;
+
+  background:
+    #ffffff;
+
+  padding:
+    18px 28px;
+
+  border-bottom:
+    1px solid #dddddd;
+
+  box-shadow:
+    0 2px 8px
+    rgba(
+      0,
+      0,
+      0,
+      0.05
+    );
+
 }
+
+
+.app-header h1 {
+
+  margin: 0;
+
+  font-size:
+    24px;
+
+  font-weight:
+    700;
+
+}
+
+
+/* =========================================================
+   메인 레이아웃
+========================================================= */
 
 .dashboard-layout {
-  display: flex;
-  gap: 16px;
-  padding: 16px;
+
+  display:
+    flex;
+
+  gap:
+    20px;
+
+  padding:
+    20px;
+
+  min-height:
+    calc(
+      100vh
+      -
+      80px
+    );
+
 }
 
-/* Leaflet 지도는 컨테이너에 명시적인 높이가 있어야 렌더링됩니다. */
+
+/* =========================================================
+   지도
+========================================================= */
+
 .map-container {
-  flex: 1 1 auto;
-  min-width: 0;
-  height: 70vh;
+
+  flex:
+    1;
+
+  height:
+    78vh;
+
+  min-width:
+    0;
+
+  background:
+    #dddddd;
+
+  border-radius:
+    12px;
+
+  overflow:
+    hidden;
+
+  box-shadow:
+    0 3px 12px
+    rgba(
+      0,
+      0,
+      0,
+      0.08
+    );
+
 }
+
+
+/* =========================================================
+   상세패널
+========================================================= */
 
 .detail-panel {
-  flex: 0 0 280px;
-  padding: 16px;
-  border-left: 1px solid #ddd;
+
+  flex:
+    0 0
+    320px;
+
+  background:
+    #ffffff;
+
+  padding:
+    22px;
+
+  border-radius:
+    12px;
+
+  box-shadow:
+    0 3px 12px
+    rgba(
+      0,
+      0,
+      0,
+      0.08
+    );
+
 }
+
+
+.detail-panel h2 {
+
+  margin-top:
+    0;
+
+  margin-bottom:
+    20px;
+
+  padding-bottom:
+    14px;
+
+  border-bottom:
+    2px solid
+    #eeeeee;
+
+  font-size:
+    22px;
+
+}
+
+
+/* =========================================================
+   상세정보
+========================================================= */
+
+.detail-panel dl {
+
+  margin:
+    0;
+
+}
+
 
 .detail-panel dt {
-  font-weight: 600;
-  margin-top: 10px;
+
+  margin-top:
+    16px;
+
+  font-size:
+    13px;
+
+  font-weight:
+    700;
+
+  color:
+    #777777;
+
 }
+
 
 .detail-panel dd {
-  margin: 2px 0 0 0;
-  color: #333;
+
+  margin:
+    4px 0
+    0;
+
+  font-size:
+    17px;
+
+  font-weight:
+    600;
+
+  color:
+    #222222;
+
 }
 
-/* 지도 마커 팝업 */
-.region-popup table {
-  border-collapse: collapse;
+
+/* =========================================================
+   관리등급
+========================================================= */
+
+#grade {
+
+  font-size:
+    26px;
+
+  font-weight:
+    bold;
+
 }
+
+
+/* =========================================================
+   Leaflet 팝업
+========================================================= */
+
+.region-popup h3 {
+
+  margin:
+    0 0
+    10px;
+
+  font-size:
+    17px;
+
+}
+
+
+.region-popup table {
+
+  border-collapse:
+    collapse;
+
+  width:
+    100%;
+
+}
+
 
 .region-popup th,
 .region-popup td {
-  padding: 2px 8px;
-  text-align: left;
-  font-size: 13px;
+
+  padding:
+    5px 8px;
+
+  text-align:
+    left;
+
+  font-size:
+    13px;
+
+}
+
+
+.region-popup th {
+
+  color:
+    #666666;
+
+  font-weight:
+    600;
+
+}
+
+
+/* =========================================================
+   관리등급 범례
+========================================================= */
+
+.grade-legend {
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.95
+    );
+
+  padding:
+    12px;
+
+  border-radius:
+    8px;
+
+  box-shadow:
+    0 2px 8px
+    rgba(
+      0,
+      0,
+      0,
+      0.2
+    );
+
+  font-size:
+    12px;
+
+  line-height:
+    1.8;
+
+}
+
+
+.grade-legend strong {
+
+  font-size:
+    13px;
+
+}
+
+
+.legend-color {
+
+  display:
+    inline-block;
+
+  width:
+    12px;
+
+  height:
+    12px;
+
+  margin-right:
+    7px;
+
+  border-radius:
+    50%;
+
+}
+
+
+.grade-a {
+
+  background:
+    #d73027;
+
+}
+
+
+.grade-b {
+
+  background:
+    #fc8d59;
+
+}
+
+
+.grade-c {
+
+  background:
+    #fee08b;
+
+}
+
+
+.grade-d {
+
+  background:
+    #91cf60;
+
+}
+
+
+/* =========================================================
+   Leaflet 레이어 메뉴
+========================================================= */
+
+.leaflet-control-layers {
+
+  border:
+    none !important;
+
+  border-radius:
+    8px !important;
+
+  box-shadow:
+    0 2px 8px
+    rgba(
+      0,
+      0,
+      0,
+      0.15
+    ) !important;
+
+}
+
+
+.leaflet-control-layers-expanded {
+
+  padding:
+    10px 14px;
+
+}
+
+
+/* =========================================================
+   모바일 대응
+========================================================= */
+
+@media (
+  max-width:
+  900px
+) {
+
+  .dashboard-layout {
+
+    flex-direction:
+      column;
+
+  }
+
+
+  .map-container {
+
+    width:
+      100%;
+
+    height:
+      60vh;
+
+  }
+
+
+  .detail-panel {
+
+    flex:
+      none;
+
+    width:
+      100%;
+
+  }
+
 }
