@@ -16,6 +16,27 @@ let hotspotLayer;
 let regionData = [];
 let regionDataMap = {};
 let geoRegionLayers = {};
+let guBoundaryLayer = null;
+
+// data/regions 는 법정동 단위, 경계 geojson(static/data/bukgu_dong.geojson)은
+// 행정동 단위라 이름이 1:1로 안 맞는 곳이 있어 행정동 -> 법정동 매핑으로 보정한다.
+// (행정동이 여러 법정동을 묶은 경우만 기재, 이름이 같은 동은 생략)
+const ADMIN_TO_LEGAL_DONGS = {
+  "침산1동": ["침산동"],
+  "침산2동": ["침산동"],
+  "침산3동": ["침산동"],
+  "산격1동": ["산격동"],
+  "산격2동": ["산격동"],
+  "산격3동": ["산격동"],
+  "산격4동": ["산격동"],
+  "복현1동": ["복현동"],
+  "복현2동": ["복현동"],
+  "태전1동": ["태전동"],
+  "태전2동": ["태전동"],
+  "무태조야동": ["무태조야동", "서변동", "동변동", "연경동", "조야동"],
+  "관문동": ["매천동", "사수동", "팔달동", "금호동", "노곡동"],
+  "국우동": ["국우동", "학정동", "동호동", "도남동"]
+};
 
 function initMap() {
   map = L.map("map", {
@@ -148,10 +169,32 @@ function updateRegionPanel(region) {
   }
 }
 
-function buildRegionPopup(region) {
+function buildRegionPopup(region, adminDong, matches) {
+  const title =
+    adminDong && adminDong !== region["동"]
+      ? `${adminDong} <small>(${region["동"]})</small>`
+      : region["동"];
+
+  const others =
+    matches && matches.length > 1
+      ? `
+        <div class="popup-sub-list">
+          <strong>포함 법정동 (${matches.length}개)</strong>
+          <ul>
+            ${matches
+              .map(
+                item =>
+                  `<li>${item["동"]} · ${item["관리등급"]}등급 · ${formatScore(item["관리점수"])}점</li>`
+              )
+              .join("")}
+          </ul>
+        </div>
+      `
+      : "";
+
   return `
     <div class="region-popup">
-      <h3>${region["동"]}</h3>
+      <h3>${title}</h3>
       <table>
         <tr><th>관리등급</th><td>${region["관리등급"]}</td></tr>
         <tr><th>관리점수</th><td>${formatScore(region["관리점수"])}점</td></tr>
@@ -161,8 +204,31 @@ function buildRegionPopup(region) {
         <tr><th>집중요일</th><td>${region["집중요일"] || "-"}</td></tr>
         <tr><th>집중시간</th><td>${region["집중시간"]}시</td></tr>
       </table>
+      ${others}
     </div>
   `;
+}
+
+// 행정동 이름(geojson)에 대응하는 법정동 region 데이터들을 반환
+function getRegionsForAdminDong(adminDong) {
+  const legalNames = ADMIN_TO_LEGAL_DONGS[adminDong] || [adminDong];
+
+  return legalNames
+    .map(name => regionDataMap[name])
+    .filter(Boolean);
+}
+
+// 한 행정동에 법정동이 여러 개 묶인 경우, 관리점수가 가장 높은(우선순위가 높은) 곳을 대표로 표시
+function pickPrimaryRegion(regions) {
+  if (!regions || regions.length === 0) {
+    return null;
+  }
+
+  return regions.reduce((best, region) => {
+    const score = Number(region["관리점수"]) || 0;
+    const bestScore = Number(best["관리점수"]) || 0;
+    return score > bestScore ? region : best;
+  });
 }
 
 async function loadRegions() {
@@ -213,7 +279,39 @@ async function loadRanking() {
   });
 }
 
+// 대구 북구 전체 외곽 경계선 (동 경계와 별개로 항상 표시)
+async function loadGuBoundary() {
+  try {
+    const response = await fetch("/static/data/bukgu_boundary.geojson");
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const geojson = await response.json();
+
+    guBoundaryLayer = L.geoJSON(geojson, {
+      style: {
+        color: "#1d2939",
+        weight: 3.5,
+        opacity: 1,
+        fill: false
+      },
+      interactive: false
+    });
+
+    guBoundaryLayer.addTo(map);
+
+    return guBoundaryLayer.getBounds();
+  } catch (error) {
+    console.log("북구 경계 GeoJSON 없음 또는 오류 → 생략");
+    return null;
+  }
+}
+
 async function loadRegionGeoJson() {
+  const guBounds = await loadGuBoundary();
+
   try {
     const response = await fetch("/static/data/bukgu_dong.geojson");
 
@@ -236,11 +334,18 @@ async function loadRegionGeoJson() {
 
     geoLayer.addTo(regionLayer);
 
-    const bounds = geoLayer.getBounds();
+    const dongBounds = geoLayer.getBounds();
+    const bounds =
+      guBounds && guBounds.isValid() ? guBounds : dongBounds;
 
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [12, 12] });
       map.setMaxBounds(bounds.pad(0.15));
+    }
+
+    // 북구 경계선이 동 경계(채우기) 위에 그려지도록 맨 위로 올림
+    if (guBoundaryLayer) {
+      guBoundaryLayer.bringToFront();
     }
   } catch (error) {
     console.log("GeoJSON 없음 또는 오류 → 마커 방식 사용");
@@ -263,38 +368,47 @@ function getFeatureDongName(feature) {
 
 function regionStyle(feature) {
   const dong = getFeatureDongName(feature);
-  const region = regionDataMap[dong];
-  const grade = region ? region["관리등급"] : null;
+  const primary = pickPrimaryRegion(getRegionsForAdminDong(dong));
+  const grade = primary ? primary["관리등급"] : null;
 
   return {
     color: "#30485d",
     weight: 1.25,
     fillColor: getGradeColor(grade),
-    fillOpacity: region ? 0.6 : 0.12
+    fillOpacity: primary ? 0.6 : 0.12
   };
 }
 
 function onEachRegion(feature, layer) {
   const dong = getFeatureDongName(feature);
-  const region = regionDataMap[dong];
 
   if (!dong) {
     return;
   }
 
+  const matches = getRegionsForAdminDong(dong);
+  const primary = pickPrimaryRegion(matches);
+
   geoRegionLayers[dong] = layer;
 
-  if (!region) {
+  // 법정동 이름으로 검색했을 때도 같은 행정동 폴리곤을 찾도록 별칭 등록
+  matches.forEach(region => {
+    geoRegionLayers[region["동"]] = layer;
+  });
+
+  if (!primary) {
     layer.bindTooltip(dong);
     return;
   }
 
-  layer.bindTooltip(
-    `${dong} · ${region["관리등급"]}등급`,
-    { sticky: true }
-  );
+  const tooltipLabel =
+    matches.length > 1
+      ? `${dong} · ${primary["관리등급"]}등급 (법정동 ${matches.length}개)`
+      : `${dong} · ${primary["관리등급"]}등급`;
 
-  layer.bindPopup(buildRegionPopup(region));
+  layer.bindTooltip(tooltipLabel, { sticky: true });
+
+  layer.bindPopup(buildRegionPopup(primary, dong, matches));
 
   layer.on("mouseover", () => {
     layer.setStyle({
@@ -308,7 +422,7 @@ function onEachRegion(feature, layer) {
   });
 
   layer.on("click", () => {
-    updateRegionPanel(region);
+    updateRegionPanel(primary);
   });
 }
 
