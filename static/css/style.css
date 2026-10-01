@@ -1,0 +1,52 @@
+/* 대시보드 전체 레이아웃 (최소한의 스타일만 — 디자인은 추후 담당자가 보강) */
+
+body {
+  margin: 0;
+  font-family: "Malgun Gothic", sans-serif;
+}
+
+.app-header {
+  padding: 12px 20px;
+  border-bottom: 1px solid #ddd;
+}
+
+.dashboard-layout {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+}
+
+/* Leaflet 지도는 컨테이너에 명시적인 높이가 있어야 렌더링됩니다. */
+.map-container {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 70vh;
+}
+
+.detail-panel {
+  flex: 0 0 280px;
+  padding: 16px;
+  border-left: 1px solid #ddd;
+}
+
+.detail-panel dt {
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.detail-panel dd {
+  margin: 2px 0 0 0;
+  color: #333;
+}
+
+/* 지도 마커 팝업 */
+.region-popup table {
+  border-collapse: collapse;
+}
+
+.region-popup th,
+.region-popup td {
+  padding: 2px 8px;
+  text-align: left;
+  font-size: 13px;
+}

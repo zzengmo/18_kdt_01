@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>대구 북구 불법주정차 대시보드</title>
+
+  <!-- Leaflet (지도) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>대구 북구 불법주정차 관리 대시보드</h1>
+  </header>
+
+  <main class="dashboard-layout">
+    <!-- 지도 영역: static/js/map.js 가 이 id="map" 요소에 Leaflet 지도를 생성합니다. -->
+    <section id="map" class="map-container" aria-label="동별 관리 현황 지도"></section>
+
+    <!-- 상세 패널: 마커 클릭 시 static/js/map.js의 updateRegionPanel()이 아래 id들의 내용을 갱신합니다. -->
+    <aside id="detail-panel" class="detail-panel" aria-label="선택 지역 상세 정보">
+      <h2 id="region-name">지역을 선택하세요</h2>
+      <dl>
+        <dt>관리등급</dt>
+        <dd id="grade">-</dd>
+
+        <dt>관리점수</dt>
+        <dd id="score">-</dd>
+
+        <dt>단속건수 (2017~2023)</dt>
+        <dd id="violation-count">-</dd>
+
+        <dt>민원건수 (2018~2021)</dt>
+        <dd id="complaint-count">-</dd>
+
+        <dt>CCTV수</dt>
+        <dd id="cctv-count">-</dd>
+
+        <dt>집중요일</dt>
+        <dd id="peak-weekday">-</dd>
+
+        <dt>집중시간</dt>
+        <dd id="peak-hour">-</dd>
+
+        <dt>관리유형</dt>
+        <dd id="management-type">-</dd>
+      </dl>
+    </aside>
+  </main>
+
+  <!-- Leaflet 스크립트 -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- 지도 기능 (담당: 지도) -->
+  <script src="{{ url_for('static', filename='js/map.js') }}" defer></script>
+
+  <!-- 차트 기능 (담당: 다른 팀원, 여기서는 내용 수정하지 않음) -->
+  <script src="{{ url_for('static', filename='js/charts.js') }}" defer></script>
+</body>
+</html>
