@@ -17,6 +17,7 @@ let regionData = [];
 let regionDataMap = {};
 let geoRegionLayers = {};
 let guBoundaryLayer = null;
+let selectedRegionLayer = null;
 
 // data/regions 는 법정동 단위, 경계 geojson(static/data/bukgu_dong.geojson)은
 // 행정동 단위라 이름이 1:1로 안 맞는 곳이 있어 행정동 -> 법정동 매핑으로 보정한다.
@@ -379,6 +380,27 @@ function regionStyle(feature) {
   };
 }
 
+// 클릭으로 선택된 동을 실제 경계선 모양 그대로 강조하는 스타일
+function selectedRegionStyle(feature) {
+  return {
+    ...regionStyle(feature),
+    color: "#111827",
+    weight: 4,
+    fillOpacity: 0.85
+  };
+}
+
+// 이전 선택을 원래 스타일로 되돌리고, 새로 클릭한 레이어를 그 동의 실제 경계 모양대로 강조
+function selectRegionLayer(layer) {
+  if (selectedRegionLayer && selectedRegionLayer !== layer) {
+    selectedRegionLayer.setStyle(regionStyle(selectedRegionLayer.feature));
+  }
+
+  selectedRegionLayer = layer;
+  layer.setStyle(selectedRegionStyle(layer.feature));
+  layer.bringToFront();
+}
+
 function onEachRegion(feature, layer) {
   const dong = getFeatureDongName(feature);
 
@@ -418,11 +440,17 @@ function onEachRegion(feature, layer) {
   });
 
   layer.on("mouseout", () => {
+    if (layer === selectedRegionLayer) {
+      layer.setStyle(selectedRegionStyle(feature));
+      return;
+    }
+
     layer.setStyle(regionStyle(feature));
   });
 
   layer.on("click", () => {
     updateRegionPanel(primary);
+    selectRegionLayer(layer);
   });
 }
 
@@ -611,6 +639,7 @@ function focusRegion(dong) {
       }
     );
 
+    selectRegionLayer(geoRegionLayers[dong]);
     geoRegionLayers[dong].openPopup();
     return;
   }
