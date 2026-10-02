@@ -370,6 +370,77 @@ function getFeatureDongName(feature) {
   );
 }
 
+// 다각형 고리(ring)의 면적 중심(centroid)을 구한다. ring: [[lng, lat], ...]
+function ringCentroid(ring) {
+  let area = 0;
+  let cx = 0;
+  let cy = 0;
+  const n = ring.length;
+
+  for (let i = 0; i < n; i++) {
+    const [x0, y0] = ring[i];
+    const [x1, y1] = ring[(i + 1) % n];
+    const cross = x0 * y1 - x1 * y0;
+
+    area += cross;
+    cx += (x0 + x1) * cross;
+    cy += (y0 + y1) * cross;
+  }
+
+  area *= 0.5;
+
+  if (Math.abs(area) < 1e-12) {
+    const sum = ring.reduce(
+      (acc, [x, y]) => [acc[0] + x, acc[1] + y],
+      [0, 0]
+    );
+    return { lng: sum[0] / n, lat: sum[1] / n, area: 0 };
+  }
+
+  return {
+    lng: cx / (6 * area),
+    lat: cy / (6 * area),
+    area: Math.abs(area)
+  };
+}
+
+// 동 이름 라벨 위치: 바운딩박스 중앙 대신, 가장 넓은 폴리곤 조각의 실제
+// 면적 중심을 사용 → 모양이 울퉁불퉁하거나(여러 법정동을 합친 동) 길쭉한
+// 동도 라벨이 경계선 위가 아니라 실제 땅 안쪽에 찍히게 한다.
+function getFeatureLabelLatLng(feature) {
+  const geom = feature.geometry;
+
+  if (!geom) {
+    return null;
+  }
+
+  let outerRings;
+
+  if (geom.type === "Polygon") {
+    outerRings = [geom.coordinates[0]];
+  } else if (geom.type === "MultiPolygon") {
+    outerRings = geom.coordinates.map(part => part[0]);
+  } else {
+    return null;
+  }
+
+  let best = null;
+
+  outerRings.forEach(ring => {
+    if (!ring || ring.length < 3) {
+      return;
+    }
+
+    const centroid = ringCentroid(ring);
+
+    if (!best || centroid.area > best.area) {
+      best = centroid;
+    }
+  });
+
+  return best ? L.latLng(best.lat, best.lng) : null;
+}
+
 function regionStyle(feature) {
   const dong = getFeatureDongName(feature);
   const primary = pickPrimaryRegion(getRegionsForAdminDong(dong));
@@ -425,7 +496,8 @@ function onEachRegion(feature, layer) {
   // bindHoverCards() 가 로드 후 같은 레이어의 툴팁을 unbindTooltip() 하고
   // 상세 정보 호버카드로 교체해버려서 라벨이 사라진다. 툴팁과 완전히 분리된
   // 마커(divIcon)로 그려서 호버카드 교체와 무관하게 항상 보이게 한다.
-  const labelCenter = layer.getBounds().getCenter();
+  const labelCenter =
+    getFeatureLabelLatLng(feature) || layer.getBounds().getCenter();
 
   L.marker(labelCenter, {
     icon: L.divIcon({
