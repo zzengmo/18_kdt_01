@@ -1383,3 +1383,9 @@ small.rank-low { color: #15803d; }
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.leaflet-interactive:focus,
+.leaflet-container path:focus,
+.leaflet-container svg:focus {
+  outline: none;
+}
