@@ -250,7 +250,7 @@ button {
 }
 
 .panel-head .kicker {
-  display: block;
+  display: none;
   color: var(--blue);
 }
 
