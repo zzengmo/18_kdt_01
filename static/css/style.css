@@ -405,6 +405,12 @@ input {
   box-shadow: 0 1px 7px rgba(0, 0, 0, 0.18) !important;
 }
 
+/* 동 폴리곤 클릭 시 브라우저가 그리는 사각형(바운딩박스) 포커스 아웃라인 제거
+   → map.js 에서 적용하는 실제 테두리 강조 스타일만 보이게 함 */
+.leaflet-interactive:focus {
+  outline: none;
+}
+
 .analysis-modal {
   display: none;
   position: fixed;
