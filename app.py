@@ -46,7 +46,7 @@ def dataframe_to_records(df):
 
 @app.route("/")
 def index():
-    return render_template("lee_index.html")
+    return render_template("lee_index2.html")
 
 @app.route("/api/summary")
 def get_summary():

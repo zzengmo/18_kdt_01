@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<!--
+  대구 북구 불법주정차 관리 대시보드 (lee_index2.html · 푸른 톤 + 위험도 신호등 색 지도)
+
+  화면 구성 (대시보드형)
+    - 맨 위   : 검은 상단바 (제목 + 행정동 검색)
+    - 그 아래 : 숫자 요약줄 (분석 지역 / A등급 / 전체 단속 / 최다 시간 / 최다 요일)
+    - 본문    : [왼쪽 순위] | [가운데 지도] | [오른쪽 상세] 3칸
+
+  ※ map.js 와 아래 <script> 가 id 로 값을 찾아 넣으므로 id 이름은 바꾸면 안 됨
+  ※ 스타일: static/css/lee_style2.css
+-->
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>대구 북구 불법주정차 관리 대시보드</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&display=swap" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/lee_style2.css') }}" />
+</head>
+<body>
+  <!-- ===== 상단바: 제목 + 검색 ===== -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">P</div>
+      <div>
+        <span class="brand-kicker">DAEGU BUK-GU · ILLEGAL PARKING REPORT · <b id="kicker-count">27</b>개 법정동</span>
+        <h1>대구 북구 불법주정차 관리 대시보드</h1>
+      </div>
+    </div>
+
+    <!-- 검색: map.js 가 id="region-search", "search-button" 으로 기능 연결 -->
+    <div class="search-row">
+      <input id="region-search" type="text" placeholder="행정동 검색 (예: 동천동)" />
+      <button id="search-button" type="button">검색</button>
+    </div>
+  </header>
+
+  <!-- ===== 숫자 요약줄: loadRegionsLee / loadOverview 가 채움 ===== -->
+  <section class="kpi-strip">
+    <div class="kpi"><span>분석 지역</span><strong id="sum-regions">-</strong></div>
+    <div class="kpi"><span>A등급 · 집중관리</span><strong id="sum-grade-a">-</strong></div>
+    <div class="kpi kpi-wide"><span>전체 단속 (2017~2023)</span><strong id="sum-total">-</strong></div>
+    <div class="kpi"><span>최다 단속 시간</span><strong id="sum-hour">-</strong></div>
+    <div class="kpi"><span>최다 단속 요일</span><strong id="sum-weekday">-</strong></div>
+    <p class="kpi-note">단속·민원·CCTV·집중시간을 종합해 행정동별 관리 우선도를 비교합니다.</p>
+  </section>
+
+  <main class="board">
+    <!-- ===== 왼쪽: 관리 우선순위 ===== -->
+    <aside class="panel rank-panel">
+      <div class="panel-head">
+        <span class="kicker">01 · RANKING</span>
+        <h2>관리 우선순위 <small><span id="rank-total">27</span>개 지역</small></h2>
+      </div>
+
+      <!-- 북구 전체 요약: /api/summary -->
+      <div class="overview-box">
+        <strong>북구 전체 단속 <span id="ov-total">-</span>건</strong>
+        <small id="ov-period">-</small>
+        <p id="ov-peak">최다 단속 시점을 불러오는 중입니다.</p>
+      </div>
+
+      <!-- 등급 필터: 누르면 순위 목록을 해당 등급만 표시 -->
+      <div class="grade-filter" id="grade-filter">
+        <button type="button" class="active" data-grade="all">전체</button>
+        <button type="button" data-grade="A"><i class="dot grade-a"></i>A</button>
+        <button type="button" data-grade="B"><i class="dot grade-b"></i>B</button>
+        <button type="button" data-grade="C"><i class="dot grade-c"></i>C</button>
+        <button type="button" data-grade="D"><i class="dot grade-d"></i>D</button>
+      </div>
+
+      <!-- 전체 순위 목록: renderRankList 가 채움, 누르면 지도 이동 -->
+      <ol id="all-ranking" class="rank-list">
+        <li class="empty-state">데이터를 불러오는 중입니다.</li>
+      </ol>
+      <p class="rank-note">관리점수 = 단속 + 민원 + 시간집중 + CCTV부족 점수</p>
+    </aside>
+
+    <!-- ===== 가운데: 지도 ===== -->
+    <section class="panel map-panel">
+      <div class="panel-head map-head">
+        <div>
+          <span class="kicker">02 · MAP</span>
+          <h2>행정동별 관리 우선도</h2>
+        </div>
+        <!-- 레이어 토글: data-layer 값으로 map.js 의 레이어 켜기/끄기 -->
+        <div class="segmented" id="layer-toggle">
+          <button type="button" class="active" data-layer="region">우선도</button>
+          <button type="button" data-layer="cctv">CCTV</button>
+          <button type="button" data-layer="hotspot">상습민원</button>
+        </div>
+      </div>
+
+      <div class="map-wrap">
+        <div id="map" class="map"></div>
+      </div>
+
+      <!-- 범례: 등급은 진할수록 관리 우선도가 높음 -->
+      <div class="legend-strip">
+        <span class="legend-title">관리등급</span>
+        <span><i class="dot grade-a"></i>A 집중관리</span>
+        <span><i class="dot grade-b"></i>B 관리강화</span>
+        <span><i class="dot grade-c"></i>C 일반관리</span>
+        <span><i class="dot grade-d"></i>D 낮음</span>
+        <span class="legend-sep"></span>
+        <span><i class="mark cctv"></i>CCTV</span>
+        <span><i class="mark hotspot"></i>상습 민원지역</span>
+        <span class="legend-hint">동 위에 마우스를 올리면 요약, 클릭하면 상세 정보</span>
+      </div>
+    </section>
+
+    <!-- ===== 오른쪽: 선택한 동 상세 ===== -->
+    <aside class="panel detail-panel" id="area-card">
+      <div class="panel-head">
+        <span class="kicker">03 · DETAIL</span>
+        <span id="area-rank-text" class="head-meta">27개 지역 중 -위</span>
+      </div>
+
+      <div class="detail-scroll">
+        <!-- 동 이름 + 등급 태그 (region-name 은 map.js, grade-tag 는 updateExtras) -->
+        <div class="detail-title">
+          <h2 id="region-name">지역을 선택하세요</h2>
+          <span id="grade-tag" class="grade-tag">-</span>
+        </div>
+
+        <!-- 관리점수 / 관리등급 (값은 map.js) -->
+        <div class="score-row">
+          <div class="score-cell">
+            <span>관리 우선도 점수</span>
+            <strong id="score">-</strong>
+          </div>
+          <div class="score-cell grade-cell">
+            <span>등급</span>
+            <strong id="grade-badge" class="grade-badge">-</strong>
+          </div>
+        </div>
+
+        <!-- 관리유형 + 추천 조치 -->
+        <div class="type-line">
+          <span>관리유형</span>
+          <strong id="management-type">-</strong>
+        </div>
+        <div id="action-chips" class="action-chips"></div>
+
+        <!-- 4개 지표: 한 줄씩 [이름 | 값 | 막대 | 순위] -->
+        <section class="block">
+          <h3>불법주정차 지표 <small>순위는 많은 순</small></h3>
+          <div class="metric-list">
+            <div class="metric">
+              <span>단속건수</span>
+              <strong id="violation-count">-</strong>
+              <div class="metric-bar"><i id="bar-violation"></i></div>
+              <small id="rank-violation">-</small>
+            </div>
+            <div class="metric">
+              <span>민원건수</span>
+              <strong id="complaint-count">-</strong>
+              <div class="metric-bar"><i id="bar-complaint"></i></div>
+              <small id="rank-complaint">-</small>
+            </div>
+            <div class="metric">
+              <span>CCTV</span>
+              <strong id="cctv-count">-</strong>
+              <div class="metric-bar"><i id="bar-cctv"></i></div>
+              <small id="rank-cctv">-</small>
+            </div>
+            <div class="metric">
+              <span>상습발생지</span>
+              <strong id="hotspot-count">-</strong>
+              <div class="metric-bar"><i id="bar-hotspot"></i></div>
+              <small id="rank-hotspot">-</small>
+            </div>
+          </div>
+          <p class="block-note">단속 2017~2023 · 민원 2018~2021</p>
+        </section>
+
+        <!-- 집중 시점 -->
+        <section class="block">
+          <h3>집중 시점 <small>단속이 가장 몰리는 때</small></h3>
+          <div class="peak-grid">
+            <div class="peak-card">
+              <span>요일</span>
+              <strong id="peak-weekday">-</strong>
+              <div class="peak-bar"><i id="bar-weekday"></i></div>
+              <small id="share-weekday">-</small>
+            </div>
+            <div class="peak-card">
+              <span>시간</span>
+              <strong id="peak-time">-</strong>
+              <div class="peak-bar"><i id="bar-hour"></i></div>
+              <small id="share-hour">-</small>
+            </div>
+          </div>
+        </section>
+
+        <!-- 점수 구성 -->
+        <section class="block">
+          <h3>점수 구성 <small>항목별 기여도</small></h3>
+          <div id="score-parts" class="score-parts"></div>
+        </section>
+
+        <!-- 북구 단속 다발 장소 TOP 5 -->
+        <section class="block">
+          <h3>북구 단속 다발 장소 TOP 5 <small>2017~2023</small></h3>
+          <ol id="place-list" class="place-list"></ol>
+        </section>
+      </div>
+
+      <!-- 자세히 보기: 분석 그래프 모달 열기 -->
+      <button id="analysis-button" class="detail-button" type="button">분석 그래프 자세히 보기 →</button>
+    </aside>
+  </main>
+
+  <!-- 분석 그래프 모달 -->
+  <div id="analysis-modal" class="analysis-modal" aria-hidden="true">
+    <div class="analysis-modal-card">
+      <div class="analysis-modal-header">
+        <div>
+          <span class="card-kicker">ANALYSIS</span>
+          <h2>분석 그래프</h2>
+        </div>
+        <button id="analysis-close" class="modal-close" type="button" aria-label="닫기">×</button>
+      </div>
+
+      <div class="analysis-tabs">
+        <button type="button" class="analysis-tab active" data-group="priority">우선도</button>
+        <button type="button" class="analysis-tab" data-group="location">장소·시간</button>
+        <button type="button" class="analysis-tab" data-group="complaint">민원·CCTV</button>
+      </div>
+
+      <div class="analysis-content">
+        <div id="analysis-buttons" class="analysis-button-list"></div>
+
+        <div class="analysis-image-wrap">
+          <div id="analysis-placeholder" class="analysis-placeholder">
+            왼쪽에서 분석 항목을 선택하세요.
+          </div>
+          <img id="analysis-image" src="" alt="분석 그래프" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="{{ url_for('static', filename='js/map.js') }}" defer></script>
+
+  <script>
+    /* ---------- 분석 그래프 모달 (기존 index.html 과 동일) ---------- */
+    const graphGroups = {
+      priority: [
+        ["관리등급 분포", "final_grade_count.png"],
+        ["관리점수 히트맵", "final_priority_score_heatmap.png"],
+        ["우선 관리 지역 TOP 10", "final_priority_top10.png"],
+        ["단속·민원 분석", "final_violation_complaint_scatter.png"]
+      ],
+      location: [
+        ["상위 10개 지역 시간대 분석", "location_top10_hour_heatmap.png"],
+        ["상위 10개 지역 장소 분석", "location_top10_places.png"],
+        ["상위 10개 지역 연도별 추이", "location_top10_year_trend.png"]
+      ],
+      complaint: [
+        ["2025년 단속 유형", "hotspot_2025_enforcement_type.png"],
+        ["동별 민원·CCTV 분석", "hotspot_dong_complaint_cctv.png"],
+        ["집중 관리 지역 지도", "hotspot_location_map.png"],
+        ["집중 관리 지역 TOP 10", "hotspot_top10.png"]
+      ]
+    };
+
+    const modal = document.getElementById("analysis-modal");
+    const analysisButton = document.getElementById("analysis-button");
+    const closeButton = document.getElementById("analysis-close");
+    const analysisImage = document.getElementById("analysis-image");
+    const analysisButtons = document.getElementById("analysis-buttons");
+    const placeholder = document.getElementById("analysis-placeholder");
+
+    function renderGraphButtons(groupName) {
+      const items = graphGroups[groupName] || [];
+      analysisButtons.innerHTML = "";
+
+      items.forEach(([label, filename]) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+
+        button.addEventListener("click", () => {
+          analysisButtons.querySelectorAll("button").forEach(item => item.classList.remove("active"));
+          button.classList.add("active");
+          analysisImage.src = "{{ url_for('static', filename='images/') }}" + filename;
+          analysisImage.style.display = "block";
+          placeholder.style.display = "none";
+        });
+
+        analysisButtons.appendChild(button);
+      });
+    }
+
+    function closeModal() {
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+    }
+
+    analysisButton.addEventListener("click", () => {
+      modal.classList.add("open");
+      modal.setAttribute("aria-hidden", "false");
+      renderGraphButtons("priority");
+    });
+
+    closeButton.addEventListener("click", closeModal);
+
+    document.querySelectorAll(".analysis-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".analysis-tab").forEach(item => {
+          item.classList.remove("active");
+        });
+
+        tab.classList.add("active");
+        analysisImage.style.display = "none";
+        placeholder.style.display = "flex";
+        renderGraphButtons(tab.dataset.group);
+      });
+    });
+
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        closeModal();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeModal();
+      }
+    });
+
+    /* ---------- 화면 보조 기능 (map.js 는 수정하지 않음) ---------- */
+    const GRADE_LABELS = {
+      A: "A등급 · 집중관리 우선",
+      B: "B등급 · 관리 강화",
+      C: "C등급 · 일반 관리",
+      D: "D등급 · 우선도 낮음"
+    };
+
+    // 관리유형별 추천 조치 (팀 분석 결과에 맞게 문구 수정 가능)
+    const ACTIONS = {
+      "집중시간대 단속 강화 검토": r => [`${r["집중시간"]}시 전후 집중 단속 배치`, `${r["집중요일"]} 단속 인력 우선 편성`, "상습 민원지점 순찰 강화"],
+      "CCTV 보강·집중단속 검토": r => ["주정차 단속 CCTV 추가 설치 검토", `${r["집중시간"]}시 전후 이동식 단속`, "민원 다발지점 우선 점검"],
+      "단속 인프라 보강 검토": () => ["고정형 단속 CCTV 확충 검토", "안내 표지·노면 표시 정비"],
+      "관리 강화 검토": r => ["정기 순찰 횟수 확대", `${r["집중요일"]} 집중 점검`],
+      "일반 관리": () => ["현행 단속 체계 유지", "민원 추이 모니터링"],
+      "상대적 우선도 낮음": () => ["정기 점검 수준 유지"]
+    };
+
+    const SCORE_PARTS = [
+      ["단속점수", "단속", "#0d2a4c"],
+      ["민원점수", "민원", "#2563a8"],
+      ["시간집중점수", "시간집중", "#3d9ad6"],
+      ["CCTV부족점수", "CCTV부족", "#9cc3e6"]
+    ];
+
+    let leeRegions = [];
+    let leeByName = {};
+    let leeRanks = {};
+    let leeMax = {};
+
+    const fmt = value => {
+      const number = Number(value);
+      return Number.isFinite(number) ? Math.round(number).toLocaleString("ko-KR") : "-";
+    };
+
+    const setTextLee = (id, value) => {
+      const element = document.getElementById(id);
+      if (element) element.textContent = value;
+    };
+
+    function buildRanks(field) {
+      const sorted = [...leeRegions].sort((a, b) => (Number(b[field]) || 0) - (Number(a[field]) || 0));
+      const ranks = {};
+      sorted.forEach((region, index) => { ranks[region["동"]] = index + 1; });
+      leeRanks[field] = ranks;
+      leeMax[field] = Math.max(...leeRegions.map(region => Number(region[field]) || 0), 1);
+    }
+
+    function rankClass(rank, total) {
+      if (rank <= Math.ceil(total / 3)) return "rank-high";
+      if (rank <= Math.ceil(total * 2 / 3)) return "rank-mid";
+      return "rank-low";
+    }
+
+    function fillMetric(region, field, key) {
+      const total = leeRegions.length;
+      const rank = leeRanks[field][region["동"]];
+      const ratio = (Number(region[field]) || 0) / leeMax[field] * 100;
+      const bar = document.getElementById(`bar-${key}`);
+      const label = document.getElementById(`rank-${key}`);
+      const cls = rankClass(rank, total);
+
+      bar.style.width = `${Math.max(ratio, 3)}%`;
+      bar.className = cls;
+      label.className = cls;
+      label.textContent = `${total}개 중 ${rank}위`;
+    }
+
+    // map.js 가 #region-name 을 바꾸면(지도 클릭·검색·순위 클릭) 추가 정보도 같이 갱신
+    function updateExtras() {
+      const name = document.getElementById("region-name").textContent.trim();
+      const region = leeByName[name];
+      if (!region) return;
+
+      const grade = region["관리등급"];
+      const tag = document.getElementById("grade-tag");
+      tag.textContent = GRADE_LABELS[grade] || "-";
+      tag.className = `grade-tag tag-${grade}`;
+      document.getElementById("area-card").dataset.grade = grade;
+
+      setTextLee("area-rank-text", `${leeRegions.length}개 지역 중 ${leeRanks["관리점수"][name]}위`);
+      setTextLee("hotspot-count", `${fmt(region["상습발생지수"])}곳`);
+
+      fillMetric(region, "단속건수_2017_2023", "violation");
+      fillMetric(region, "민원건수_2018_2021", "complaint");
+      fillMetric(region, "CCTV수", "cctv");
+      fillMetric(region, "상습발생지수", "hotspot");
+
+      const weekdayShare = Number(region["집중요일비중"]) || 0;
+      const hourShare = Number(region["집중시간비중"]) || 0;
+      document.getElementById("bar-weekday").style.width = `${Math.min(weekdayShare * 3, 100)}%`;
+      document.getElementById("bar-hour").style.width = `${Math.min(hourShare * 3, 100)}%`;
+      setTextLee("share-weekday", `전체 단속의 ${weekdayShare.toFixed(1)}%`);
+      setTextLee("share-hour", `전체 단속의 ${hourShare.toFixed(1)}%`);
+
+      const actions = (ACTIONS[region["관리유형"]] || (() => []))(region);
+      document.getElementById("action-chips").innerHTML =
+        actions.map(text => `<span class="chip">${text}</span>`).join("");
+
+      const scoreTotal = Number(region["관리점수"]) || 0;
+      document.getElementById("score-parts").innerHTML = SCORE_PARTS.map(([field, label, color]) => {
+        const value = Number(region[field]) || 0;
+        return `
+          <div class="part-row">
+            <span>${label}</span>
+            <div class="part-bar"><i style="width:${Math.min(value / 40 * 100, 100)}%;background:${color}"></i></div>
+            <strong>${value.toFixed(1)}</strong>
+          </div>`;
+      }).join("") + `<div class="part-total">합계 <strong>${scoreTotal.toFixed(1)}점</strong></div>`;
+
+      document.querySelectorAll("#all-ranking .rank-item").forEach(item => {
+        item.classList.toggle("active", item.dataset.dong === name);
+      });
+    }
+
+    function renderRankList(gradeFilter) {
+      const list = document.getElementById("all-ranking");
+      const current = document.getElementById("region-name").textContent.trim();
+      const rows = leeRegions.filter(region => gradeFilter === "all" || region["관리등급"] === gradeFilter);
+
+      list.innerHTML = rows.map(region => {
+        const name = region["동"];
+        const grade = region["관리등급"];
+        return `
+          <li>
+            <button type="button" class="rank-item${name === current ? " active" : ""}" data-dong="${name}">
+              <span class="rank-no rank-no-${grade}">${leeRanks["관리점수"][name]}</span>
+              <span class="rank-name">${name}</span>
+              <span class="rank-grade grade-text-${grade}">${grade}등급</span>
+              <span class="rank-score">${Number(region["관리점수"]).toFixed(1)}</span>
+            </button>
+          </li>`;
+      }).join("");
+
+      list.querySelectorAll(".rank-item").forEach(item => {
+        item.addEventListener("click", () => {
+          if (typeof focusRegion === "function") focusRegion(item.dataset.dong);
+        });
+      });
+    }
+
+    async function loadOverview() {
+      try {
+        const [summary, places] = await Promise.all([
+          fetch("/api/summary").then(res => res.json()),
+          fetch("/api/location-top10").then(res => res.json())
+        ]);
+
+        const startYear = String(summary["분석시작일"] || "").slice(0, 4);
+        const endYear = String(summary["분석종료일"] || "").slice(0, 4);
+
+        setTextLee("ov-total", fmt(summary["전체단속건수"]));
+        setTextLee("ov-period", `${startYear}~${endYear} 단속 데이터 기준`);
+        setTextLee("ov-peak",
+          `최다 단속은 ${summary["최다요일"]} ${summary["최다시간"]}시, ` +
+          `가장 많이 단속된 장소는 ‘${summary["최다단속장소"]}’(${fmt(summary["최다단속장소건수"])}건)입니다.`);
+
+        setTextLee("sum-total", `${fmt(summary["전체단속건수"])}건`);
+        setTextLee("sum-hour", `${summary["최다시간"]}시`);
+        setTextLee("sum-weekday", summary["최다요일"] || "-");
+
+        const topPlaces = places.slice(0, 5);
+        const maxPlace = Math.max(...topPlaces.map(place => Number(place["총단속건수"]) || 0), 1);
+        document.getElementById("place-list").innerHTML = topPlaces.map((place, index) => `
+          <li>
+            <span class="place-no">${index + 1}</span>
+            <div class="place-body">
+              <div class="place-top">
+                <strong>${place["위반장소"]}</strong>
+                <span>${fmt(place["총단속건수"])}건</span>
+              </div>
+              <div class="place-bar"><i style="width:${(Number(place["총단속건수"]) || 0) / maxPlace * 100}%"></i></div>
+              <small>${place["집중요일"]} · ${place["집중시간"]}시 집중</small>
+            </div>
+          </li>`).join("");
+      } catch (error) {
+        console.error("요약 데이터 로딩 오류:", error);
+      }
+    }
+
+    async function loadRegionsLee() {
+      try {
+        leeRegions = await fetch("/api/regions").then(res => res.json());
+        leeByName = {};
+        leeRegions.forEach(region => { leeByName[region["동"]] = region; });
+
+        ["관리점수", "단속건수_2017_2023", "민원건수_2018_2021", "CCTV수", "상습발생지수"].forEach(buildRanks);
+
+        const total = leeRegions.length;
+        setTextLee("kicker-count", total);
+        setTextLee("rank-total", total);
+        setTextLee("sum-regions", `${total}개`);
+        setTextLee("sum-grade-a", `${leeRegions.filter(region => region["관리등급"] === "A").length}개`);
+
+        renderRankList("all");
+        updateExtras();
+
+        new MutationObserver(updateExtras).observe(
+          document.getElementById("region-name"),
+          { childList: true, characterData: true, subtree: true }
+        );
+      } catch (error) {
+        console.error("지역 데이터 로딩 오류:", error);
+      }
+    }
+
+    function bindGradeFilter() {
+      document.querySelectorAll("#grade-filter button").forEach(button => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll("#grade-filter button").forEach(item => item.classList.remove("active"));
+          button.classList.add("active");
+          renderRankList(button.dataset.grade);
+        });
+      });
+    }
+
+    // 왼쪽 레일 토글 → map.js 의 레이어(regionLayer / cctvLayer / hotspotLayer) 켜기·끄기
+    function bindLayerToggle() {
+      const layers = {
+        region: () => regionLayer,
+        cctv: () => cctvLayer,
+        hotspot: () => hotspotLayer
+      };
+
+      document.querySelectorAll("#layer-toggle button").forEach(button => {
+        button.addEventListener("click", () => {
+          if (typeof map === "undefined" || !map) return;
+
+          const layer = layers[button.dataset.layer]();
+          if (map.hasLayer(layer)) {
+            map.removeLayer(layer);
+            button.classList.remove("active");
+          } else {
+            map.addLayer(layer);
+            button.classList.add("active");
+          }
+        });
+      });
+    }
+
+    // 마우스를 동 위에 올리면 기본 정보 카드(툴팁) 표시
+    function buildHoverCard(region, adminDong, count) {
+      const grade = region["관리등급"];
+      const hour = Number(region["집중시간"]);
+      const title = adminDong && adminDong !== region["동"]
+        ? `${adminDong} <small>(${region["동"]})</small>`
+        : region["동"];
+      const extra = count > 1 ? `<div class="hover-note">법정동 ${count}개 포함 · 점수 가장 높은 동 기준</div>` : "";
+
+      return `
+        <div class="hover-card-inner">
+          <div class="hover-head">
+            <strong>${title}</strong>
+            <span class="hover-grade tag-${grade}">${GRADE_LABELS[grade] || "-"}</span>
+          </div>
+          <table>
+            <tr><th>관리등급</th><td>${grade}</td></tr>
+            <tr><th>관리점수</th><td>${Number(region["관리점수"]).toFixed(1)}점</td></tr>
+            <tr><th>단속건수</th><td>${fmt(region["단속건수_2017_2023"])}건</td></tr>
+            <tr><th>민원건수</th><td>${fmt(region["민원건수_2018_2021"])}건</td></tr>
+            <tr><th>CCTV</th><td>${fmt(region["CCTV수"])}대</td></tr>
+            <tr><th>집중요일</th><td>${region["집중요일"] || "-"}</td></tr>
+            <tr><th>집중시간</th><td>${Number.isFinite(hour) ? `${hour}시` : "-"}</td></tr>
+          </table>
+          ${extra}
+        </div>`;
+    }
+
+    // map.js 의 geojson 은 비동기로 그려지므로, 폴리곤이 생길 때까지 잠깐씩 기다렸다가 툴팁 교체
+    function bindHoverCards(tries = 0) {
+      const polygons = [];
+      if (typeof regionLayer !== "undefined" && regionLayer) {
+        regionLayer.eachLayer(group => {
+          if (group.eachLayer) group.eachLayer(layer => { if (layer.feature) polygons.push(layer); });
+        });
+      }
+
+      if (polygons.length === 0 || leeRegions.length === 0) {
+        if (tries < 50) setTimeout(() => bindHoverCards(tries + 1), 200);
+        return;
+      }
+
+      polygons.forEach(layer => {
+        const dong = getFeatureDongName(layer.feature);
+        const matches = getRegionsForAdminDong(dong);
+        const primary = pickPrimaryRegion(matches);
+        if (!primary) return;
+
+        layer.unbindTooltip();
+        layer.bindTooltip(buildHoverCard(primary, dong, matches.length), {
+          sticky: true,
+          direction: "auto",
+          offset: [14, 0],
+          opacity: 1,
+          className: "hover-card"
+        });
+      });
+    }
+
+    // map.js(defer)의 initMap 이 끝난 뒤 실행되도록 load 이벤트 사용
+    window.addEventListener("load", () => {
+      bindHoverCards();
+      bindGradeFilter();
+      bindLayerToggle();
+      loadRegionsLee();
+      loadOverview();
+    });
+  </script>
+</body>
+</html>
