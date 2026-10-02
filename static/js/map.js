@@ -340,7 +340,10 @@ async function loadRegionGeoJson() {
       guBounds && guBounds.isValid() ? guBounds : dongBounds;
 
     if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [12, 12] });
+      // fitBounds 애니메이션이 끝나기 전에 setMaxBounds 가 뷰를 강제로
+      // 되돌리면 줌 애니메이션이 중간에 끊기면서 툴팁(동 이름 라벨) 패널이
+      // 숨김 상태로 남는 문제가 있어, 최초 화면 맞춤은 애니메이션 없이 처리한다.
+      map.fitBounds(bounds, { padding: [12, 12], animate: false });
       map.setMaxBounds(bounds.pad(0.15));
     }
 
@@ -376,7 +379,7 @@ function regionStyle(feature) {
     color: "#30485d",
     weight: 1.25,
     fillColor: getGradeColor(grade),
-    fillOpacity: primary ? 0.6 : 0.12
+    fillOpacity: primary ? 0.32 : 0.08
   };
 }
 
@@ -386,7 +389,7 @@ function selectedRegionStyle(feature) {
     ...regionStyle(feature),
     color: "#111827",
     weight: 4,
-    fillOpacity: 0.85
+    fillOpacity: 0.55
   };
 }
 
@@ -418,24 +421,32 @@ function onEachRegion(feature, layer) {
     geoRegionLayers[region["동"]] = layer;
   });
 
+  // 동 이름은 폴리곤에 bindTooltip 으로 붙이면 안 된다 — lee_index.html 의
+  // bindHoverCards() 가 로드 후 같은 레이어의 툴팁을 unbindTooltip() 하고
+  // 상세 정보 호버카드로 교체해버려서 라벨이 사라진다. 툴팁과 완전히 분리된
+  // 마커(divIcon)로 그려서 호버카드 교체와 무관하게 항상 보이게 한다.
+  const labelCenter = layer.getBounds().getCenter();
+
+  L.marker(labelCenter, {
+    icon: L.divIcon({
+      className: "dong-label-icon",
+      html: dong,
+      iconSize: null
+    }),
+    interactive: false,
+    keyboard: false
+  }).addTo(regionLayer);
+
   if (!primary) {
-    layer.bindTooltip(dong);
     return;
   }
-
-  const tooltipLabel =
-    matches.length > 1
-      ? `${dong} · ${primary["관리등급"]}등급 (법정동 ${matches.length}개)`
-      : `${dong} · ${primary["관리등급"]}등급`;
-
-  layer.bindTooltip(tooltipLabel, { sticky: true });
 
   layer.bindPopup(buildRegionPopup(primary, dong, matches));
 
   layer.on("mouseover", () => {
     layer.setStyle({
       weight: 3,
-      fillOpacity: 0.78
+      fillOpacity: 0.5
     });
   });
 

@@ -108,6 +108,27 @@ button {
   box-shadow: var(--shadow-md);
 }
 
+/* 동 이름 상시 표시 라벨.
+   bindTooltip 이 아니라 별도 마커(divIcon)로 그린다 — 폴리곤에 붙은 툴팁은
+   bindHoverCards() 가 호버카드로 교체해버리므로, 이름 표시는 완전히 분리된
+   레이어로 둬야 사라지지 않는다. */
+.dong-label-icon {
+  width: auto !important;
+  height: auto !important;
+  background: transparent !important;
+  border: none !important;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 800;
+  color: #1d2939;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 3px #fff,
+    0 0 3px #fff;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
 /* 동 위 마우스오버 정보 카드 */
 .leaflet-tooltip.hover-card {
   padding: 0;
