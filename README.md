@@ -19,12 +19,12 @@
 ```text
 18_kdt_01/
 │
-├─ app.py
-├─ requirements.txt
-├─ README.md
-├─ .gitignore
+├─ app.py # Flask 서버 실행 및 API 제공
+├─ requirements.txt # 프로젝트 실행에 필요한 Python 라이브러리 목록
+├─ README.md # 프로젝트 소개 및 협업 방법
+├─ .gitignore # Git에 올리지 않을 파일/폴더 설정
 │
-├─ data/
+├─ data/ # 원본 데이터 및 전처리 결과 저장 폴더
 │  ├─ 대구광역시 북구_데이터통합플랫폼_CCTV위치_20210630.csv
 │  ├─ 대구광역시 북구_데이터통합플랫폼_불법주차_20201005.csv
 │  ├─ 대구광역시 북구_불법주정차 민원_20211123.csv
@@ -34,7 +34,7 @@
 │  ├─ 대구광역시 북구_불법주정차위반정보_20240603.csv
 │  ├─ 대구광역시 북구_불법주정차위반정보_20260102.csv
 │  │
-│  └─ processed/
+│  └─ processed/ # 전처리·분석 후 생성된 결과 데이터
 │     ├─ violation_2017_2023.csv
 │     ├─ violation_2025.csv
 │     ├─ lee_complaint_2018_2021.csv
@@ -48,27 +48,27 @@
 │     ├─ final_region_summary.csv
 │     └─ final_overall_summary.csv
 │
-├─ notebooks/
-│  ├─ 01_preprocessing.ipynb
-│  ├─ 02_date_analysis.ipynb
-│  ├─ 03_time_analysis.ipynb
-│  ├─ 04_location_analysis.ipynb
-│  ├─ 05_hotspot_analysis.ipynb
-│  ├─ 06_final_analysis.ipynb
+├─ notebooks/ # Jupyter Notebook 분석 코드
+│  ├─ 01_preprocessing.ipynb # 원본 CSV 통합, 인코딩 처리, 날짜·시간·요일 전처리
+│  ├─ 02_date_analysis.ipynb # 연도·월·요일 기준 날짜 분석
+│  ├─ 03_time_analysis.ipynb # 시간대 및 요일×시간 교차 분석
+│  ├─ 04_location_analysis.ipynb # 단속 장소 TOP10, 장소×시간, 연도별 추이 분석
+│  ├─ 05_hotspot_analysis.ipynb # 민원·CCTV·상습 발생지역 분석
+│  ├─ 06_final_analysis.ipynb # 최종 데이터 통합, 관리점수·백분위·관리등급 산정
 │  │
-│  └─ images/
+│  └─ images/ # Notebook 분석 과정에서 생성한 그래프 이미지
 │     └─ 분석 과정에서 생성된 시각화 이미지
 │
-├─ static/
+├─ static/ # Flask 웹페이지에서 사용하는 정적 파일
 │  ├─ css/
-│  │  └─ lee_style2.css
+│  │  └─ lee_style2.css # 웹 대시보드 전체 UI 디자인
 │  │
 │  ├─ js/
-│  │  └─ map.js
+│  │  └─ map.js # Leaflet 지도, 검색, 등급표시, CCTV·민원 레이어 기능
 │  │
 │  ├─ data/
-│  │  ├─ bukgu_boundary.geojson
-│  │  └─ bukgu_dong.geojson
+│  │  ├─ bukgu_boundary.geojson  # 대구 북구 전체 외곽 경계 데이터
+│  │  └─ bukgu_dong.geojson # 대구 북구 행정동 경계 데이터
 │  │
 │  └─ images/
 │     ├─ final_grade_count.png
@@ -84,15 +84,15 @@
 │     └─ location_top10_year_trend.png
 │
 ├─ templates/
-│  └─ lee_index2.html
+│  └─ lee_index2.html # Flask에서 렌더링하는 메인 웹 대시보드 화면
 │
-├─ images/
+├─ images/ # 최종 분석 그래프 일부 보관 폴더
 │  ├─ final_grade_count.png
 │  ├─ final_priority_score_heatmap.png
 │  ├─ final_priority_top10.png
 │  └─ final_violation_complaint_scatter.png
 │
-└─ docs/
+└─ docs/ # 프로젝트 문서 보관 폴더
    └─ lee_불법주정차_프로젝트_최종보고서.pdf
 
 ```
