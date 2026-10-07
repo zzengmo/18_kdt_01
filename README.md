@@ -13,12 +13,14 @@
 ---
 
 ---
+
 ## 📁 프로젝트 파일 구성
 
+```text
 18_kdt_01/
 │
-├─ app.py (Flask 서버 실행)
-├─ requirements.txt 
+├─ app.py
+├─ requirements.txt
 ├─ README.md
 ├─ .gitignore
 │
@@ -47,12 +49,12 @@
 │     └─ final_overall_summary.csv
 │
 ├─ notebooks/
-│  ├─ 01_preprocessing.ipynb (공통 전처리)
-│  ├─ 02_date_analysis.ipynb (연도,월,요일,분석)
-│  ├─ 03_time_analysis.ipynb (시간대 및 요일x시간 분석)
-│  ├─ 04_location_analysis.ipynb (장소 TOP10 및 장소×시간 분석)
-│  ├─ 05_hotspot_analysis.ipynb (민원·CCTV·상습 발생지역 분석)
-│  ├─ 06_final_analysis.ipynb (관리점수·등급 산정 및 최종 통합)
+│  ├─ 01_preprocessing.ipynb
+│  ├─ 02_date_analysis.ipynb
+│  ├─ 03_time_analysis.ipynb
+│  ├─ 04_location_analysis.ipynb
+│  ├─ 05_hotspot_analysis.ipynb
+│  ├─ 06_final_analysis.ipynb
 │  │
 │  └─ images/
 │     └─ 분석 과정에서 생성된 시각화 이미지
@@ -62,13 +64,13 @@
 │  │  └─ lee_style2.css
 │  │
 │  ├─ js/
-│  │  └─ map.js (Leaflet 지도, 검색, CCTV·상습민원 레이어)
+│  │  └─ map.js
 │  │
-│  ├─ data/ (북구 경계 및 행정동 GeoJSON)
+│  ├─ data/
 │  │  ├─ bukgu_boundary.geojson
 │  │  └─ bukgu_dong.geojson
 │  │
-│  └─ images/ (웹에서 사용하는 분석 그래프)
+│  └─ images/
 │     ├─ final_grade_count.png
 │     ├─ final_priority_score_heatmap.png
 │     ├─ final_priority_top10.png
@@ -82,7 +84,7 @@
 │     └─ location_top10_year_trend.png
 │
 ├─ templates/
-│  └─ lee_index2.html (Flask 웹 대시보드 화면)
+│  └─ lee_index2.html
 │
 ├─ images/
 │  ├─ final_grade_count.png
@@ -90,11 +92,10 @@
 │  ├─ final_priority_top10.png
 │  └─ final_violation_complaint_scatter.png
 │
-└─ docs/ (최종보고서 등 프로젝트 문서)
+└─ docs/
    └─ lee_불법주정차_프로젝트_최종보고서.pdf
 
-
-
+```
 
 #### 팀 협업 안내  ####
 
