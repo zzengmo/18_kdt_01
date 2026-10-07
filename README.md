@@ -11,6 +11,90 @@
 [📘 불법주정차 프로젝트 최종보고서 보기](./docs/불법주정차_프로젝트_최종보고서.pdf)
 ---
 
+## 프로젝트 파일 구성 설명
+---
+
+## 📁 프로젝트 파일 구성
+
+```text
+18_kdt_01/
+│
+├─ app.py (Flask 서버 실행)
+├─ requirements.txt 
+├─ README.md
+├─ .gitignore
+│
+├─ data/
+│  ├─ 대구광역시 북구_데이터통합플랫폼_CCTV위치_20210630.csv
+│  ├─ 대구광역시 북구_데이터통합플랫폼_불법주차_20201005.csv
+│  ├─ 대구광역시 북구_불법주정차 민원_20211123.csv
+│  ├─ 대구광역시 북구_불법주정차 상습 발생지 현장 정보_20211123.csv
+│  ├─ 대구광역시 북구_불법주정차위반정보_20230704.csv
+│  ├─ 대구광역시 북구_불법주정차위반정보_20231130.csv
+│  ├─ 대구광역시 북구_불법주정차위반정보_20240603.csv
+│  ├─ 대구광역시 북구_불법주정차위반정보_20260102.csv
+│  │
+│  └─ processed/
+│     ├─ violation_2017_2023.csv
+│     ├─ violation_2025.csv
+│     ├─ lee_complaint_2018_2021.csv
+│     ├─ lee_cctv_location.csv
+│     ├─ hotspot_clean.csv
+│     ├─ dong_support_summary.csv
+│     ├─ enforcement_2025_summary.csv
+│     ├─ location_top10_summary.csv
+│     ├─ location_top10_hour.csv
+│     ├─ location_top10_year.csv
+│     ├─ final_region_summary.csv
+│     └─ final_overall_summary.csv
+│
+├─ notebooks/
+│  ├─ 01_preprocessing.ipynb (공통 전처리)
+│  ├─ 02_date_analysis.ipynb (연도,월,요일,분석)
+│  ├─ 03_time_analysis.ipynb (시간대 및 요일x시간 분석)
+│  ├─ 04_location_analysis.ipynb (장소 TOP10 및 장소×시간 분석)
+│  ├─ 05_hotspot_analysis.ipynb (민원·CCTV·상습 발생지역 분석)
+│  ├─ 06_final_analysis.ipynb (관리점수·등급 산정 및 최종 통합)
+│  │
+│  └─ images/
+│     └─ 분석 과정에서 생성된 시각화 이미지
+│
+├─ static/
+│  ├─ css/
+│  │  └─ lee_style2.css
+│  │
+│  ├─ js/
+│  │  └─ map.js (Leaflet 지도, 검색, CCTV·상습민원 레이어)
+│  │
+│  ├─ data/ (북구 경계 및 행정동 GeoJSON)
+│  │  ├─ bukgu_boundary.geojson
+│  │  └─ bukgu_dong.geojson
+│  │
+│  └─ images/ (웹에서 사용하는 분석 그래프)
+│     ├─ final_grade_count.png
+│     ├─ final_priority_score_heatmap.png
+│     ├─ final_priority_top10.png
+│     ├─ final_violation_complaint_scatter.png
+│     ├─ hotspot_2025_enforcement_type.png
+│     ├─ hotspot_dong_complaint_cctv.png
+│     ├─ hotspot_location_map.png
+│     ├─ hotspot_top10.png
+│     ├─ location_top10_hour_heatmap.png
+│     ├─ location_top10_places.png
+│     └─ location_top10_year_trend.png
+│
+├─ templates/
+│  └─ lee_index2.html (Flask 웹 대시보드 화면)
+│
+├─ images/
+│  ├─ final_grade_count.png
+│  ├─ final_priority_score_heatmap.png
+│  ├─ final_priority_top10.png
+│  └─ final_violation_complaint_scatter.png
+│
+└─ docs/ (최종보고서 등 프로젝트 문서)
+   └─ lee_불법주정차_프로젝트_최종보고서.pdf
+
 
 ## 팀 협업 안내
 
